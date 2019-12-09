@@ -85,13 +85,9 @@ let ind = 0;
 
 function fixYPosition(y, node) {
   if (node.attributes) {
-    const fontSizeAttr = Object.keys(node.attributes).find(
-      a => node.attributes[a].name === "font-size"
-    );
+    const fontSizeAttr = Object.keys(node.attributes).find(a => node.attributes[a].name === "font-size");
     if (fontSizeAttr) {
-      return (
-        "" + (parseFloat(y) - parseFloat(node.attributes[fontSizeAttr].value))
-      );
+      return "" + (parseFloat(y) - parseFloat(node.attributes[fontSizeAttr].value));
     }
   }
   if (!node.parentNode) {
@@ -116,7 +112,7 @@ class SvgUri extends Component {
     // Gets the image data from an URL or a static file
     if (props.source) {
       const source = resolveAssetSource(props.source) || {};
-      this.fetchSVGData(source.uri);
+      this.fetchSVGData(source.uri, source.headers);
     }
   }
 
@@ -128,8 +124,8 @@ class SvgUri extends Component {
     if (nextProps.source) {
       const source = resolveAssetSource(nextProps.source) || {};
       const oldSource = resolveAssetSource(this.props.source) || {};
-      if (source.uri !== oldSource.uri) {
-        this.fetchSVGData(source.uri);
+      if (source.uri !== oldSource.uri || areSourceHeadersDifferent(source.headers, oldSource.headers)) {
+        this.fetchSVGData(source.uri, source.headers);
       }
     }
 
@@ -146,11 +142,31 @@ class SvgUri extends Component {
     this.isComponentMounted = false;
   }
 
-  async fetchSVGData(uri) {
+  areSourceHeadersDifferent(nextHeaders, oldHeaders) {
+    if (oldHeaders == null) {
+      return nextHeaders != null;
+    }
+    if (nextHeaders == null) {
+      return true;
+    }
+    for (let key in nextHeaders) {
+      if (!(key in oldHeaders) || oldHeaders[key] != nextHeaders[key]) {
+        return true;
+      }
+    }
+    for (let key in oldHeaders) {
+      if (!(key in nextHeaders) || nextHeaders[key] != oldHeaders[key]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async fetchSVGData(uri, headers) {
     let responseXML = null,
       error = null;
     try {
-      const response = await fetch(uri);
+      const response = await fetch(uri, headers ? { headers } : null);
       responseXML = await response.text();
     } catch (e) {
       error = e;
@@ -173,8 +189,7 @@ class SvgUri extends Component {
   trimElementChilden(children) {
     for (child of children) {
       if (typeof child === "string") {
-        if (child.trim().length === 0)
-          children.splice(children.indexOf(child), 1);
+        if (child.trim().length === 0) children.splice(children.indexOf(child), 1);
       }
     }
   }
@@ -322,10 +337,7 @@ class SvgUri extends Component {
       .map(utils.removePixelsFromNodeValue)
       .filter(utils.getEnabledAttributes(enabledAttributes.concat(COMMON_ATTS)))
       .reduce((acc, { nodeName, nodeValue }) => {
-        acc[nodeName] =
-          this.state.fill && nodeName === "fill" && nodeValue !== "none"
-            ? this.state.fill
-            : nodeValue;
+        acc[nodeName] = this.state.fill && nodeName === "fill" && nodeValue !== "none" ? this.state.fill : nodeValue;
         return acc;
       }, {});
     Object.assign(componentAtts, styleAtts);
@@ -368,10 +380,7 @@ class SvgUri extends Component {
       }
 
       const inputSVG = this.state.svgXmlData
-        .substring(
-          this.state.svgXmlData.indexOf("<svg "),
-          this.state.svgXmlData.indexOf("</svg>") + 6
-        )
+        .substring(this.state.svgXmlData.indexOf("<svg "), this.state.svgXmlData.indexOf("</svg>") + 6)
         .replace(/<!-(.*?)->/g, "");
 
       const doc = new xmldom.DOMParser().parseFromString(inputSVG);
