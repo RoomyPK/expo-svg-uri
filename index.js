@@ -124,7 +124,7 @@ class SvgUri extends Component {
     if (nextProps.source) {
       const source = resolveAssetSource(nextProps.source) || {};
       const oldSource = resolveAssetSource(this.props.source) || {};
-      if (source.uri !== oldSource.uri || areSourceHeadersDifferent(source.headers, oldSource.headers)) {
+      if (source.uri !== oldSource.uri || this.areSourceHeadersDifferent(source.headers, oldSource.headers)) {
         this.fetchSVGData(source.uri, source.headers);
       }
     }
